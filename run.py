@@ -31,6 +31,14 @@ class Item(Resource):
         items = list(filter(lambda x: x['name'] != name, items))
         return {'message': 'Item Deleted'}
 
+    def put(self, name):
+        item = next(filter(lambda x: x['name'] == name, items), None)
+        if item is None:
+            return {'message': 'Item not found'}, 404
+        data = request.get_json()
+        item.update(data)
+        return item
+
 class Items(Resource):
     def get(self):
         return {'items': items}
