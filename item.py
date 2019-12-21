@@ -10,8 +10,19 @@ class Item(Resource):
         help="This field cannot be left blank"
     )
 
-    @jwt_required()
-    def get(self, name):
+    @classmethod
+    def insert(cls, item):
+        connection = sqlite3.connect('data.db')
+        cursor = connection.cursor()
+
+        query = "INSERT INTO items VALUES (NULL, ?, ?)"
+        cursor.execute(query, (item['name'], item['price']))
+
+        connection.commit()
+        connection.close()
+
+    @classmethod
+    def find_by_name(cls, name):
         connection = sqlite3.connect('data.db')
         cursor = connection.cursor()
 
@@ -22,43 +33,59 @@ class Item(Resource):
 
         if row:
             return {'item': {'name': row[1], 'price': row[2]}}
+
+    @jwt_required()
+    def get(self, name):
+        item = self.find_by_name(name)
+        if item:
+            return item
         return {'message': 'Item not found.'}, 404
 
     def post(self, name):
-        connection = sqlite3.connect('data.db')
-        cursor = connection.cursor()
-        select_query = "SELECT * FROM items WHERE name=?"
-        result = cursor.execute(select_query, (name,))
-        row = result.fetchone()
-        if row:
+        item = self.find_by_name(name)
+
+        if item:
             return {'message': 'Item already added'}, 400
 
         data = Item.parser.parse_args()
-        query = "INSERT INTO items VALUES (NULL, ?, ?)"
-        cursor.execute(query, (name, data['price']))
-        connection.commit()
-        connection.close()
+        item = {'name': name, 'price': data['price']}
+        try:
+            self.insert(item)
+        except:
+            return {'message': 'An error occured'}, 500
         return {'message': 'Item added successfully'}, 201
 
     def delete(self, name):
-        connection = sqlite3.connect('data.db')
-        cursor = connection.cursor()
+        item = self.find_by_name(name)
+        if item:
+            connection = sqlite3.connect('data.db')
+            cursor = connection.cursor()
 
-        query = "DELETE FROM items WHERE name=?"
-        cursor.execute(query, (name,))
+            query = "DELETE FROM items WHERE name=?"
+            cursor.execute(query, (name,))
 
-        connection.commit()
-        connection.close()
-        return {'message': 'Item Deleted'}
+            connection.commit()
+            connection.close()
+            return {'message': 'Item Deleted'}
+
+        return {'message': 'Item does not exists'}, 400
 
     def put(self, name):
-        item = next(filter(lambda x: x['name'] == name, items), None)
-        if item is None:
-            return {'message': 'Item not found'}, 404
-        # data = request.get_json()
-        data = Item.parser.parse_args()
-        item.update(data)
-        return item
+        item = self.find_by_name(name)
+        if item:
+            connection = sqlite3.connect('data.db')
+            cursor = connection.cursor()
+
+            data = Item.parser.parse_args()
+            updated_item = {'name': name, 'price': data['price']}
+            query = "UPDATE items SET price=? WHERE name=?"
+            cursor.execute(query, (updated_item['price'], name))
+
+            connection.commit()
+            connection.close()
+            return updated_item
+
+        return {'message': 'Item not found'}, 400
 
 class Items(Resource):
     def get(self):
