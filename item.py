@@ -25,17 +25,30 @@ class Item(Resource):
         return {'message': 'Item not found.'}, 404
 
     def post(self, name):
-        if next(filter(lambda x: x['name'] == name, items), None) is not None:
-            return {'message': F"An item with name {name} already exists."}, 400
-        # data = request.get_json()
+        connection = sqlite3.connect('data.db')
+        cursor = connection.cursor()
+        select_query = "SELECT * FROM items WHERE name=?"
+        result = cursor.execute(select_query, (name,))
+        row = result.fetchone()
+        if row:
+            return {'message': 'Item already added'}, 400
+
         data = Item.parser.parse_args()
-        item = {'name': name, 'price': data['price']}
-        items.append(item)
-        return item, 201
+        query = "INSERT INTO items VALUES (NULL, ?, ?)"
+        cursor.execute(query, (name, data['price']))
+        connection.commit()
+        connection.close()
+        return {'message': 'Item added successfully'}, 201
 
     def delete(self, name):
-        global items
-        items = list(filter(lambda x: x['name'] != name, items))
+        connection = sqlite3.connect('data.db')
+        cursor = connection.cursor()
+
+        query = "DELETE FROM items WHERE name=?"
+        cursor.execute(query, (name,))
+
+        connection.commit()
+        connection.close()
         return {'message': 'Item Deleted'}
 
     def put(self, name):
