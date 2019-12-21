@@ -1,6 +1,7 @@
 import sqlite3
 from flask_restful import Resource, reqparse
 from flask_jwt import jwt_required
+from models.item import ItemModel
 
 class Item(Resource):
     parser = reqparse.RequestParser()
@@ -10,39 +11,15 @@ class Item(Resource):
         help="This field cannot be left blank"
     )
 
-    @classmethod
-    def insert(cls, item):
-        connection = sqlite3.connect('data.db')
-        cursor = connection.cursor()
-
-        query = "INSERT INTO items VALUES (NULL, ?, ?)"
-        cursor.execute(query, (item['name'], item['price']))
-
-        connection.commit()
-        connection.close()
-
-    @classmethod
-    def find_by_name(cls, name):
-        connection = sqlite3.connect('data.db')
-        cursor = connection.cursor()
-
-        query = "SELECT * FROM items where name=?"
-        result = cursor.execute(query, (name,))
-        row = result.fetchone()
-        connection.close()
-
-        if row:
-            return {'item': {'name': row[1], 'price': row[2]}}
-
     @jwt_required()
     def get(self, name):
-        item = self.find_by_name(name)
+        item = ItemModel.find_by_name(name)
         if item:
-            return item
+            return item.json()
         return {'message': 'Item not found.'}, 404
 
     def post(self, name):
-        item = self.find_by_name(name)
+        item = ItemModel.find_by_name(name)
 
         if item:
             return {'message': 'Item already added'}, 400
@@ -50,13 +27,13 @@ class Item(Resource):
         data = Item.parser.parse_args()
         item = {'name': name, 'price': data['price']}
         try:
-            self.insert(item)
+            ItemModel.insert(item)
         except:
             return {'message': 'An error occured'}, 500
-        return {'message': 'Item added successfully'}, 201
+        return item, 201
 
     def delete(self, name):
-        item = self.find_by_name(name)
+        item = ItemModel.find_by_name(name)
         if item:
             connection = sqlite3.connect('data.db')
             cursor = connection.cursor()
@@ -71,7 +48,7 @@ class Item(Resource):
         return {'message': 'Item does not exists'}, 400
 
     def put(self, name):
-        item = self.find_by_name(name)
+        item = ItemModel.find_by_name(name)
         if item:
             connection = sqlite3.connect('data.db')
             cursor = connection.cursor()
