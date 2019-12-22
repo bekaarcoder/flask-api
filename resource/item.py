@@ -25,53 +25,61 @@ class Item(Resource):
             return {'message': 'Item already added'}, 400
 
         data = Item.parser.parse_args()
-        item = {'name': name, 'price': data['price']}
+        item = ItemModel(name, data['price'])
         try:
-            ItemModel.insert(item)
+            item.save_to_db()
         except:
             return {'message': 'An error occured'}, 500
-        return item, 201
+        return item.json(), 201
 
     def delete(self, name):
         item = ItemModel.find_by_name(name)
         if item:
-            connection = sqlite3.connect('data.db')
-            cursor = connection.cursor()
-
-            query = "DELETE FROM items WHERE name=?"
-            cursor.execute(query, (name,))
-
-            connection.commit()
-            connection.close()
-            return {'message': 'Item Deleted'}
+            item.delete_from_db()
+            return {'message': 'Item deleted'}
+            # connection = sqlite3.connect('data.db')
+            # cursor = connection.cursor()
+            #
+            # query = "DELETE FROM items WHERE name=?"
+            # cursor.execute(query, (name,))
+            #
+            # connection.commit()
+            # connection.close()
 
         return {'message': 'Item does not exists'}, 400
 
     def put(self, name):
         item = ItemModel.find_by_name(name)
         if item:
-            connection = sqlite3.connect('data.db')
-            cursor = connection.cursor()
-
             data = Item.parser.parse_args()
-            updated_item = {'name': name, 'price': data['price']}
-            query = "UPDATE items SET price=? WHERE name=?"
-            cursor.execute(query, (updated_item['price'], name))
-
-            connection.commit()
-            connection.close()
-            return updated_item
+            item.price = data['price']
+            item.save_to_db()
+            return item.json()
+            # connection = sqlite3.connect('data.db')
+            # cursor = connection.cursor()
+            #
+            # data = Item.parser.parse_args()
+            # updated_item = {'name': name, 'price': data['price']}
+            # query = "UPDATE items SET price=? WHERE name=?"
+            # cursor.execute(query, (updated_item['price'], name))
+            #
+            # connection.commit()
+            # connection.close()
 
         return {'message': 'Item not found'}, 400
 
 class Items(Resource):
     def get(self):
-        connection = sqlite3.connect('data.db')
-        cursor = connection.cursor()
-        items = []
-        query = "SELECT * FROM items"
-        result = cursor.execute(query)
-        for row in result:
-            items.append({'_id': row[0], 'name': row[1], 'price': row[2]})
-        connection.close()
-        return {'items': items}
+        items = ItemModel.query.all()
+        item_list = []
+        for item in items:
+            item_list.append(item.json())
+        return {'items': item_list}
+        # connection = sqlite3.connect('data.db')
+        # cursor = connection.cursor()
+        # items = []
+        # query = "SELECT * FROM items"
+        # result = cursor.execute(query)
+        # for row in result:
+        #     items.append({'_id': row[0], 'name': row[1], 'price': row[2]})
+        # connection.close()
