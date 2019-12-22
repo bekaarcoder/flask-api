@@ -8,18 +8,13 @@ class UserRegister(Resource):
     parser.add_argument('password', type=str, required=True, help="Password is required")
 
     def post(self):
-        connection = sqlite3.connect('data.db')
-        cursor = connection.cursor()
         data = UserRegister.parser.parse_args()
 
         if UserModel.find_by_username(data['username']):
             return {"message": "User already exists"}, 400
 
-        query = "INSERT INTO users VALUES (NULL, ?, ?)"
-        cursor.execute(query, (data['username'], data['password']))
-
-        connection.commit()
-        connection.close()
+        new_user = UserModel(data['username'], data['password'])
+        new_user.save_to_db()
 
         return {"message": "User created successfully."}, 201
 
